@@ -20,14 +20,35 @@ class ChatAgent {
     this.chatHistory = [];
   }
 
-  async initialize(openaiApiKey) {
+  async initialize(options = {}) {
     try {
-      // Initialize the chat model
-      const model = new ChatOpenAI({
-        openAIApiKey: openaiApiKey,
-        modelName: "gpt-3.5-turbo",
-        temperature: 0.7,
-      });
+      const provider = (options.provider || process.env.LLM_PROVIDER || "openai").toLowerCase();
+
+      // Initialize the chat model and embeddings based on provider
+      let model;
+      let embeddings;
+
+      if (provider === "ollama") {
+        const { ChatOllama } = await import("@langchain/community/chat_models/ollama");
+        const { OllamaEmbeddings } = await import("@langchain/community/embeddings/ollama");
+
+        const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+        const ollamaModel = process.env.OLLAMA_MODEL || "llama3.1";
+        const embedModel = process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text";
+
+        model = new ChatOllama({ baseUrl, model: ollamaModel, temperature: 0.7 });
+        embeddings = new OllamaEmbeddings({ baseUrl, model: embedModel });
+        console.log(`Using Ollama model: ${ollamaModel} (embeddings: ${embedModel})`);
+      } else {
+        const openaiApiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
+        model = new ChatOpenAI({
+          openAIApiKey: openaiApiKey,
+          modelName: "gpt-3.5-turbo",
+          temperature: 0.7,
+        });
+        embeddings = new OpenAIEmbeddings({ openAIApiKey: openaiApiKey });
+        console.log("Using OpenAI provider: gpt-3.5-turbo + text-embedding-3-small (default)");
+      }
 
       // Load and process the sample document
       console.log("Loading and processing the sample document...");
@@ -42,10 +63,7 @@ class ChatAgent {
       const docs = await textSplitter.createDocuments([documentText]);
 
       // Create vector store with embeddings
-      this.vectorStore = await MemoryVectorStore.fromDocuments(
-        docs,
-        new OpenAIEmbeddings({ openAIApiKey: openaiApiKey })
-      );
+      this.vectorStore = await MemoryVectorStore.fromDocuments(docs, embeddings);
 
       // Create retriever
       this.retriever = this.vectorStore.asRetriever({
@@ -128,10 +146,11 @@ async function main() {
   console.log("🤖 Welcome to the LangChain Chat Agent!");
   console.log("=====================================");
 
-  // Check for OpenAI API key
+  // Select provider (openai | ollama)
+  const provider = (process.env.LLM_PROVIDER || (process.env.OPENAI_API_KEY ? "openai" : "ollama")).toLowerCase();
   let openaiApiKey = process.env.OPENAI_API_KEY;
   
-  if (!openaiApiKey) {
+  if (provider === "openai" && !openaiApiKey) {
     console.log("Please provide your OpenAI API key:");
     console.log("You can either:");
     console.log("1. Set it as an environment variable: OPENAI_API_KEY=your_key_here");
@@ -151,14 +170,14 @@ async function main() {
     });
   }
 
-  if (!openaiApiKey) {
-    console.log("❌ OpenAI API key is required to run this application.");
+  if (provider === "openai" && !openaiApiKey) {
+    console.log("❌ OpenAI API key is required for provider=openai.");
     process.exit(1);
   }
 
   // Initialize the chat agent
   const agent = new ChatAgent();
-  const initialized = await agent.initialize(openaiApiKey);
+  const initialized = await agent.initialize({ provider, openaiApiKey });
 
   if (!initialized) {
     console.log("❌ Failed to initialize the chat agent. Please check your API key and try again.");
