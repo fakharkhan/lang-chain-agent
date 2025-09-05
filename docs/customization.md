@@ -119,6 +119,34 @@ const model = new ChatOpenAI({
 });
 ```
 
+### 3. Use Ollama (Local)
+
+Run fully locally using Ollama for both generation and embeddings:
+
+```javascript
+// index.js and web-server.js automatically switch based on env
+// .env
+// LLM_PROVIDER=ollama
+// OLLAMA_BASE_URL=http://localhost:11434
+// OLLAMA_MODEL=llama3.1
+// OLLAMA_EMBED_MODEL=nomic-embed-text
+
+// Under the hood (for reference):
+import { ChatOllama } from "@langchain/community/chat_models/ollama";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+
+const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+const model = new ChatOllama({ baseUrl, model: "llama3.1", temperature: 0.7 });
+const embeddings = new OllamaEmbeddings({ baseUrl, model: "nomic-embed-text" });
+```
+
+Make sure to pull the models first:
+
+```bash
+ollama pull llama3.1
+ollama pull nomic-embed-text
+```
+
 **Max Tokens:**
 ```javascript
 const model = new ChatOpenAI({
@@ -130,7 +158,7 @@ const model = new ChatOpenAI({
 });
 ```
 
-### 3. Use Different AI Providers
+### 4. Use Different AI Providers
 
 **Anthropic Claude:**
 ```javascript

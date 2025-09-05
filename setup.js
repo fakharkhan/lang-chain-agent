@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+import fs from 'fs';
+import path from 'path';
+import readline from 'readline';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -14,7 +18,7 @@ console.log('=============================\n');
 
 async function question(prompt) {
   return new Promise((resolve) => {
-    rl.question(prompt, resolve);
+    rl.question(prompt, (ans) => resolve(ans ?? ''));
   });
 }
 
@@ -26,43 +30,47 @@ async function setup() {
     
     if (envExists) {
       console.log('✅ .env file already exists');
-      const overwrite = await question('Do you want to overwrite it? (y/N): ');
-      if (overwrite.toLowerCase() !== 'y') {
+      const overwrite = (await question('Do you want to overwrite it? (y/N): ')).trim().toLowerCase();
+      if (overwrite !== 'y') {
         console.log('Setup cancelled.');
         rl.close();
         return;
       }
     }
-    
-    // Get OpenAI API key
-    console.log('\n📝 OpenAI API Key Setup');
-    console.log('You can get your API key from: https://platform.openai.com/api-keys');
-    const apiKey = await question('Enter your OpenAI API key: ');
-    
-    if (!apiKey.trim()) {
-      console.log('❌ API key is required. Setup cancelled.');
-      rl.close();
-      return;
-    }
-    
-    if (!apiKey.startsWith('sk-')) {
-      console.log('⚠️  Warning: API key should start with "sk-". Please verify your key.');
-      const continueAnyway = await question('Continue anyway? (y/N): ');
-      if (continueAnyway.toLowerCase() !== 'y') {
-        console.log('Setup cancelled.');
-        rl.close();
-        return;
-      }
-    }
-    
-    // Create .env file
-    const envContent = `# OpenAI API Configuration
-OPENAI_API_KEY=${apiKey}
 
-# Server Configuration
-PORT=3000
-`;
-    
+    // Choose provider
+    console.log('\n🧠 Choose your LLM provider');
+    console.log('  1) Ollama (local, recommended)');
+    console.log('  2) OpenAI (API key required)');
+    const choice = (await question('Select provider [1]: ')).trim();
+    const provider = choice === '2' ? 'openai' : 'ollama';
+
+    let envContent = '';
+    if (provider === 'openai') {
+      // Get OpenAI API key
+      console.log('\n📝 OpenAI API Key Setup');
+      console.log('Get your API key from: https://platform.openai.com/api-keys');
+      const apiKey = (await question('Enter your OpenAI API key: ')).trim();
+
+      if (!apiKey) {
+        console.log('❌ API key is required for OpenAI. Setup cancelled.');
+        rl.close();
+        return;
+      }
+
+      envContent = `# Provider\nLLM_PROVIDER=openai\n\n# OpenAI API Configuration\nOPENAI_API_KEY=${apiKey}\n\n# Server Configuration\nPORT=3000\n`;
+    } else {
+      // Ollama defaults
+      console.log('\n🧰 Ollama local setup');
+      console.log('Ensure Ollama is installed and running: https://ollama.com');
+      const baseUrl = (await question('Ollama base URL [http://localhost:11434]: ')).trim() || 'http://localhost:11434';
+      const chatModel = (await question('Chat model [llama3.1]: ')).trim() || 'llama3.1';
+      const embedModel = (await question('Embedding model [nomic-embed-text]: ')).trim() || 'nomic-embed-text';
+
+      envContent = `# Provider\nLLM_PROVIDER=ollama\n\n# Ollama Configuration\nOLLAMA_BASE_URL=${baseUrl}\nOLLAMA_MODEL=${chatModel}\nOLLAMA_EMBED_MODEL=${embedModel}\n\n# Server Configuration\nPORT=3000\n`;
+    }
+
+    // Create .env file
     fs.writeFileSync(envPath, envContent);
     console.log('\n✅ .env file created successfully!');
     

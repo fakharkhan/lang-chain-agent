@@ -13,7 +13,9 @@ A conversational AI agent built with LangChain.js that uses Retrieval Augmented 
 ## Prerequisites
 
 - Node.js (version 18 or higher)
-- OpenAI API key
+- One of:
+  - OpenAI API key (for `LLM_PROVIDER=openai`)
+  - Ollama running locally (for `LLM_PROVIDER=ollama`)
 
 ## Installation
 
@@ -24,23 +26,45 @@ A conversational AI agent built with LangChain.js that uses Retrieval Augmented 
    npm install
    ```
 
-3. **Set up your OpenAI API key**:
+3. **Choose provider and set environment**:
    
-   **Option 1: Interactive setup (Recommended)**
+   **Option 1: Use Ollama (local, no API key)**
+   ```bash
+   cp env.example .env
+   # Ensure Ollama is installed and running: https://ollama.com
+   # .env defaults to LLM_PROVIDER=ollama and local settings
+   ```
+
+   **Option 2: OpenAI (requires API key)**
    ```bash
    npm run setup
    ```
    
-   **Option 2: Environment variable**
+   **Option 3: Set environment variable directly**
    ```bash
    export OPENAI_API_KEY=your_openai_api_key_here
    ```
    
-   **Option 3: Manual .env file**
+   **Option 4: Manual .env file**
    ```bash
    cp env.example .env
-   # Edit .env and add your OpenAI API key
+   # Edit .env and set LLM_PROVIDER and related values
    ```
+
+## Use Ollama (local)
+
+To run fully locally with Ollama:
+
+- Install and start Ollama: https://ollama.com
+- Pull a chat model and an embedding model (examples):
+  - `ollama pull llama3.1`
+  - `ollama pull nomic-embed-text`
+- Ensure `.env` has:
+  - `LLM_PROVIDER=ollama`
+  - `OLLAMA_MODEL=llama3.1`
+  - `OLLAMA_EMBED_MODEL=nomic-embed-text`
+
+The app will automatically use Ollama for both generation and embeddings.
 
 ## Usage
 
